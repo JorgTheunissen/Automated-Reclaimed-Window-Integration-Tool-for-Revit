@@ -1,0 +1,1076 @@
+{
+  "Uuid": "e97eeb47-f58f-4f07-8c6d-4e75a330531e",
+  "IsCustomNode": false,
+  "Description": "",
+  "Name": "FinalCircularWindowMatchMaker",
+  "ElementResolver": {
+    "ResolutionMap": {
+      "Revit.Elements.Floor": {
+        "Key": "Revit.Elements.Floor",
+        "Value": "RevitNodes.dll"
+      }
+    }
+  },
+  "Inputs": [],
+  "Outputs": [],
+  "Nodes": [
+    {
+      "ConcreteType": "CoreNodeModels.Input.Filename, CoreNodeModels",
+      "Id": "995144fe9d3d486488a5652ee12fb3d0",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "f2f6400b3abf4595a7a0ea3a4ac98cc2",
+          "Name": "",
+          "Description": "File Path",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows you to select a file on the system and returns its file path",
+      "HintPath": "C:\\Users\\jorgt\\OneDrive\\Bureaublad\\Work\\02. Marketplace_Databases\\window_geometries_2000_items.xlsx",
+      "InputValue": "Work\\02. Marketplace_Databases\\window_geometries_2000_items.xlsx"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.DoubleSlider, CoreNodeModels",
+      "NumberType": "Double",
+      "MaximumValue": 100.0,
+      "MinimumValue": 0.0,
+      "StepValue": 0.1,
+      "Id": "615e072748e745399c9fc7260192f124",
+      "NodeType": "NumberInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "71b87f346d9f4ea3a81c3270602a0308",
+          "Name": "",
+          "Description": "Double",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Produces numeric values",
+      "InputValue": 50.0
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "Id": "b3f56ede1f5447f396add49e4206dd03",
+      "NodeType": "StringInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "cc023d81b1cd4791952ce66cfa230170",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string",
+      "InputValue": "Windows"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import sys\r\nimport clr\r\nclr.AddReference('ProtoGeometry')\r\nfrom Autodesk.DesignScript.Geometry import *\r\nclr.AddReference(\"RevitServices\")\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom RevitServices.Transactions import TransactionManager\r\nclr.AddReference(\"RevitAPI\")\r\nfrom Autodesk.Revit.DB import FilteredElementCollector\r\nfrom Autodesk.Revit.DB import StorageType\r\n\r\ndataEnteringNode = IN\r\nimport pandas as pd\r\nimport numpy as np\r\n\r\ncategory_name = IN[0]  # Extract the category name from the list\r\nWindoworiginalfile1 = pd.read_excel(IN[1], sheet_name=IN[3], keep_default_na=False)\r\ntolerance = IN[2]\r\n\r\n# Define a function to get elements of a specific category\r\ndef get_elements_of_category(doc, category_name):\r\n    category = None\r\n    for cat in doc.Settings.Categories:\r\n        if cat.Name == category_name:\r\n            category = cat\r\n            break\r\n\r\n    if not category:\r\n        raise ValueError(f\"Category '{category_name}' not found.\")\r\n\r\n    collector = FilteredElementCollector(doc).OfCategoryId(category.Id).WhereElementIsNotElementType()\r\n    elements = collector.ToElements()\r\n    return elements\r\n\r\n# Function to get specified parameters from elements\r\ndef get_element_parameters(elements):\r\n    param_data = {\r\n        \"ID\": [],\r\n        \"Family\": [],\r\n        \"FamilyType\": [],\r\n        \"Width\": [],\r\n        \"Height\": [],\r\n        \"GWP (KG CO2eq)\": []\r\n    }\r\n\r\n    for element in elements:\r\n        param_data[\"ID\"].append(element.Id.IntegerValue)\r\n        param_data[\"Family\"].append(element.Symbol.Family.Name)\r\n        param_data[\"FamilyType\"].append(element.Name)\r\n\r\n        # Get the family symbol (type) of the element\r\n        family_symbol = element.Symbol\r\n\r\n        # Look for width, height, and GWP parameters on the family symbol\r\n        width_param = family_symbol.LookupParameter(\"Width\")\r\n        height_param = family_symbol.LookupParameter(\"Height\")\r\n        gwp_param = family_symbol.LookupParameter(\"GWP (KG CO2eq)\")\r\n\r\n        # Print width and height values for debugging\r\n        if width_param and width_param.StorageType == StorageType.Double:\r\n            width_value = width_param.AsDouble() * 304.8  # Convert from feet to mm\r\n            print(\"Width:\", width_value)\r\n            param_data[\"Width\"].append(width_value)\r\n        else:\r\n            print(\"Width: None\")\r\n            param_data[\"Width\"].append(None)\r\n\r\n        if height_param and height_param.StorageType == StorageType.Double:\r\n            height_value = height_param.AsDouble() * 304.8  # Convert from feet to mm\r\n            print(\"Height:\", height_value)\r\n            param_data[\"Height\"].append(height_value)\r\n        else:\r\n            print(\"Height: None\")\r\n            param_data[\"Height\"].append(None)\r\n\r\n        if gwp_param and gwp_param.StorageType == StorageType.Double:\r\n            gwp_value = gwp_param.AsDouble()\r\n            print(\"GWP (KG CO2eq):\", gwp_value)\r\n            param_data[\"GWP (KG CO2eq)\"].append(gwp_value)\r\n        else:\r\n            print(\"GWP (KG CO2eq): None\")\r\n            param_data[\"GWP (KG CO2eq)\"].append(None)\r\n\r\n    return param_data\r\n\r\ndef find_matching_windows(data_model, Windoworiginalfile1, tolerance):\r\n    matching_windows = []\r\n    matched_original_ids = set()\r\n\r\n    for _, window in data_model.iterrows():\r\n        if window['Width'] is not None and window['Height'] is not None:\r\n            min_width = window['Width'] - tolerance\r\n            max_width = window['Width'] + tolerance\r\n            min_height = window['Height'] - tolerance\r\n            max_height = window['Height'] + tolerance\r\n\r\n            matching_window = Windoworiginalfile1[\r\n                (Windoworiginalfile1['Width'] >= min_width) &\r\n                (Windoworiginalfile1['Width'] <= max_width) &\r\n                (Windoworiginalfile1['Height'] >= min_height) &\r\n                (Windoworiginalfile1['Height'] <= max_height)\r\n            ].copy()\r\n\r\n            if not matching_window.empty:\r\n                matching_window = matching_window[~matching_window['ID'].isin(matched_original_ids)]\r\n\r\n                if not matching_window.empty:\r\n                    matching_window['Distance'] = np.sqrt(\r\n                        (matching_window['Width'] - window['Width'])**2 +\r\n                        (matching_window['Height'] - window['Height'])**2\r\n                    )\r\n\r\n                    matching_window = matching_window.sort_values(by='Distance')\r\n\r\n                    closest_match = matching_window.iloc[0]\r\n\r\n                    matched_window_data = {\r\n                        'Original_Window_ID': window['ID'],\r\n                        'ID': closest_match['ID'],\r\n                        'Width': closest_match['Width'],\r\n                        'Height': closest_match['Height'],\r\n                        'GWP (KG CO2eq)': window['GWP (KG CO2eq)'],\r\n                        'Match_found': True,\r\n                        'Family': window['Family'],\r\n                        'FamilyType': window['FamilyType']\r\n                    }\r\n\r\n                    matching_windows.append(matched_window_data)\r\n                    matched_original_ids.add(closest_match['ID'])\r\n                else:\r\n                    no_match = {\r\n                        'Original_Window_ID': window['ID'],\r\n                        'ID': 'NA',\r\n                        'Width': 'NA',\r\n                        'Height': 'NA',\r\n                        'GWP (KG CO2eq)': window['GWP (KG CO2eq)'],\r\n                        'Match_found': False,\r\n                        'Family': window['Family'],\r\n                        'FamilyType': window['FamilyType']\r\n                    }\r\n                    matching_windows.append(no_match)\r\n            else:\r\n                no_match = {\r\n                    'Original_Window_ID': window['ID'],\r\n                    'ID': 'NA',\r\n                    'Width': 'NA',\r\n                    'Height': 'NA',\r\n                    'GWP (KG CO2eq)': window['GWP (KG CO2eq)'],\r\n                    'Match_found': False,\r\n                    'Family': window['Family'],\r\n                    'FamilyType': window['FamilyType']\r\n                }\r\n                matching_windows.append(no_match)\r\n\r\n    return matching_windows\r\n\r\n# Main process wrapped in a try-except block\r\ntry:\r\n    # Get the current Revit document\r\n    doc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n    # Get elements of the specified category\r\n    elements = get_elements_of_category(doc, category_name)\r\n\r\n    # Extract parameters from elements\r\n    element_parameters = get_element_parameters(elements)\r\n\r\n    # Create a DataFrame for the data model\r\n    data_model = pd.DataFrame(element_parameters)\r\n\r\n    # Find matching windows\r\n    matched_windows = find_matching_windows(data_model, Windoworiginalfile1, tolerance)\r\n\r\n    # Output the matched windows list\r\n    OUT = matched_windows\r\n\r\n    # Print the matched windows\r\n    for mw in matched_windows:\r\n        print(mw)\r\n\r\nexcept Exception as e:\r\n    # Print or log the error message\r\n    error_message = \"An error occurred: \" + str(e)\r\n    print(error_message)\r\n    OUT = error_message\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "9ff7676f0dae4db5aafee33977d69dc4",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "d6495de5a6de4abcbbfc03f80741c146",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "111043185f234441b156e0896a7565b0",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "d60486869ac449709dfc526a3909bbff",
+          "Name": "IN[2]",
+          "Description": "Input #2",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "33e1421acd2f4170b21ec57992f98aa5",
+          "Name": "IN[3]",
+          "Description": "Input #3",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "fe30617f6dc246ff9f11f4b4b70bc769",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nimport sys\r\nimport System\r\nimport time  # Import time module for timestamp generation\r\nimport os\r\nimport shutil\r\nfrom Autodesk.DesignScript.Geometry import *\r\nfrom Autodesk.Revit.DB import *\r\nfrom Autodesk.Revit.DB import UnitUtils, UnitTypeId, IFamilyLoadOptions\r\nimport RevitServices\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom RevitServices.Transactions import TransactionManager\r\n\r\n# Data entering the node\r\ndataEnteringNode = IN\r\n\r\nmatched_windows_data = IN[0]  # The incoming matched windows data\r\n\r\nclass CustomFamilyLoadOptions(IFamilyLoadOptions):\r\n    def OnFamilyFound(self, familyInUse, overwriteParameterValues):\r\n        overwriteParameterValues.Value = True\r\n        return True\r\n\r\n    def OnSharedFamilyFound(self, sharedFamilyInUse, source, overwriteParameterValues):\r\n        overwriteParameterValues.Value = True\r\n        return True\r\n\r\ndef get_family_by_name(doc, family_name):\r\n    collector = FilteredElementCollector(doc).OfClass(Family)\r\n    for family in collector:\r\n        if family.Name == family_name:\r\n            return family\r\n    return None\r\n\r\ndef generate_new_type_name(family_name, base_name, width, height, existing_types):\r\n    timestamp = int(time.time() * 1000)\r\n    new_type_name = f\"{family_name}_{base_name}_{int(width)}x{int(height)}_{timestamp}\"\r\n    # Check if the generated name already exists, if so, modify it until it's unique\r\n    while new_type_name in existing_types:\r\n        timestamp += 1\r\n        new_type_name = f\"{family_name}_{base_name}_{int(width)}x{int(height)}_{timestamp}\"\r\n    return new_type_name\r\n\r\ndef create_new_family_type(doc, family, family_type_name, width, height, existing_types):\r\n    family_doc = None\r\n    t = None\r\n    new_type_name = None\r\n    new_path = None  # Initialize new_path variable\r\n    family_doc_name = None  # Initialize family_doc_name variable\r\n    new_family_doc_name = None  # Initialize new_family_doc_name variable\r\n\r\n    try:\r\n        print(f\"Attempting to open the family document for family: {family.Name}\")\r\n        family_doc = doc.EditFamily(family)\r\n        if family_doc and family_doc.IsValidObject:\r\n            print(f\"Successfully opened family document for family: {family.Name}\")\r\n        else:\r\n            print(f\"Failed to open family document for family: {family.Name}\")\r\n            return None, None, None, None\r\n\r\n        t = Transaction(family_doc, \"Create new family type\")\r\n        t.Start()\r\n\r\n        family_manager = family_doc.FamilyManager\r\n\r\n        print(\"Attempting to access the FamilyManager...\")\r\n        if family_manager:\r\n            print(\"FamilyManager accessed successfully.\")\r\n\r\n            new_type_name = generate_new_type_name(family.Name, family_type_name, width, height, existing_types)\r\n            print(f\"Generated new family type name: {new_type_name}\")\r\n\r\n            width_param = family_manager.get_Parameter(\"Width\")\r\n            height_param = family_manager.get_Parameter(\"Height\")\r\n\r\n            if width_param and height_param:\r\n                print(\"Width and height parameters found.\")\r\n\r\n                new_family_type = family_manager.NewType(new_type_name)\r\n                family_manager.CurrentType = new_family_type\r\n\r\n                # Convert width and height to internal units\r\n                width_internal = UnitUtils.ConvertToInternalUnits(width, UnitTypeId.Millimeters)\r\n                height_internal = UnitUtils.ConvertToInternalUnits(height, UnitTypeId.Millimeters)\r\n\r\n                family_manager.Set(width_param, width_internal)\r\n                family_manager.Set(height_param, height_internal)\r\n\r\n                print(f\"Width and height parameters set successfully for FamilyType: {new_type_name}.\")\r\n\r\n                t.Commit()\r\n                t = None\r\n\r\n                # Get the original file path of the family document\r\n                original_path = family_doc.PathName\r\n\r\n                # Print the directory path where the file will be saved\r\n                save_directory = os.path.dirname(original_path)\r\n                new_filename = os.path.basename(original_path)  # Get the original filename\r\n\r\n                # Generate new path for the saved family document\r\n                new_path = os.path.join(save_directory, new_filename)\r\n\r\n                # Delete the existing file if it exists\r\n                if os.path.exists(new_path):\r\n                    os.remove(new_path)\r\n\r\n                # Save the modified family document to a new location\r\n                family_doc.SaveAs(new_path)\r\n                print(f\"Family document saved to {new_path}\")\r\n\r\n                # Assign the name of the family document\r\n                family_doc_name = family_doc.Title\r\n\r\n                # Create a duplicate of the family file\r\n                new_family_file_path, new_family_name = create_duplicate_and_rename(new_path)\r\n                print(f\"Created duplicate family file: {new_family_file_path}\")\r\n\r\n                # Set new family document name\r\n                new_family_doc_name = new_family_name\r\n\r\n            else:\r\n                print(\"Width or height parameter not found or is not valid.\")\r\n        else:\r\n            print(\"Failed to access the FamilyManager.\")\r\n\r\n    except Exception as e:\r\n        if t and t.HasStarted():\r\n            t.RollBack()\r\n        print(f\"An error occurred while updating FamilyType. Error: {str(e)}\")\r\n    finally:\r\n        if family_doc and family_doc.IsValidObject:\r\n            family_doc.Close(False)\r\n            print(f\"Family document closed successfully for family: {family_type_name} belonging to Family: {family.Name}\")\r\n        else:\r\n            print(\"Family document is not a valid object anymore.\")\r\n    \r\n    return new_type_name, new_family_file_path, family_doc_name, new_family_doc_name\r\n\r\ndef get_family_name_from_path(family_file_path):\r\n    return os.path.splitext(os.path.basename(family_file_path))[0]\r\n\r\ndef create_duplicate_and_rename(family_file_path):\r\n    family_name = get_family_name_from_path(family_file_path)\r\n    directory, original_file_name = os.path.split(family_file_path)\r\n    base_name, extension = os.path.splitext(original_file_name)\r\n    \r\n    # Check for existing files with similar names and increment the counter accordingly\r\n    counter = 1\r\n    new_file_name = f\"{base_name}_{counter}{extension}\"\r\n    new_family_file_path = os.path.join(directory, new_file_name)\r\n\r\n    while os.path.exists(new_family_file_path):\r\n        counter += 1\r\n        new_file_name = f\"{base_name}_{counter}{extension}\"\r\n        new_family_file_path = os.path.join(directory, new_file_name)\r\n\r\n    shutil.copy2(family_file_path, new_family_file_path)\r\n    return new_family_file_path, new_file_name\r\n\r\ndef process_family_data(family_data):\r\n    created_families = []\r\n    for family_info in family_data:\r\n        family_name, family_file_path = family_info[0], family_info[1]\r\n        print(f\"Processing family: {family_name} from file: {family_file_path}\")\r\n        new_family_file_path, new_family_name = create_duplicate_and_rename(family_file_path)\r\n        created_families.append((new_family_name, new_family_file_path))\r\n    return created_families\r\n\r\ntry:\r\n    doc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n    existing_types = set()  # Collect existing types here\r\n    loaded_families = []  # Initialize list to store loaded family details\r\n\r\n    # Loop through matched windows data\r\n    for window in matched_windows_data:\r\n        if window['Match_found']:\r\n            existing_types.add(window['FamilyType'])\r\n            family_name = window['Family']\r\n            family_type_name = window['FamilyType']\r\n            width = window['Width']\r\n            height = window['Height']\r\n\r\n            # Retrieve the family by name\r\n            family = get_family_by_name(doc, family_name)\r\n            if family is None:\r\n                print(f\"Family '{family_name}' not found.\")\r\n                continue\r\n\r\n            # Create new family type\r\n            new_type_name, family_doc_path, family_doc_name, new_family_doc_name = create_new_family_type(doc, family, family_type_name, width, height, existing_types)\r\n            if not new_type_name:\r\n                print(f\"Failed to create new family type for window with FamilyType: {family_type_name} belonging to Family: {family.Name}\")\r\n            else:\r\n                print(f\"Successfully created new family type '{new_type_name}' for window with FamilyType: {family_type_name} belonging to Family: {family.Name}\")\r\n                # Append family details to the list\r\n                loaded_families.append([new_family_doc_name, family_doc_path, new_type_name, window])\r\n\r\n    OUT = loaded_families\r\nexcept Exception as e:\r\n    error_message = \"An error occurred: \" + str(e)\r\n    print(error_message)\r\n    OUT = error_message\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "e01d6bf3de8147f99a60e023a220a6ea",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "66eea797038f41b7a4c243bc89c02b13",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "257b15f9a70b43febcf3a8575b7f92eb",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nfrom Autodesk.Revit.DB import *\r\n\r\nclr.AddReference('RevitServices')\r\nimport RevitServices\r\nfrom RevitServices.Persistence import DocumentManager\r\n\r\n# Data entering the node\r\ncreated_families = IN[0]  # Assuming incoming data is a list of lists containing family information\r\n\r\nprint(\"Input data (created_families):\")\r\nprint(created_families)\r\n\r\ndef family_exists(doc, family_name):\r\n    collector = FilteredElementCollector(doc)\r\n    families = collector.OfClass(Family).ToElements()\r\n    for family in families:\r\n        if family.Name == family_name:\r\n            return True\r\n    return False\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n\r\n# Extract family names and remove .rfa extensions\r\nfami = [sublist[0].replace('.rfa', '') for sublist in created_families]\r\n\r\nprint(\"Extracted family names (fami):\")\r\nprint(fami)\r\n\r\ndef verify_families_in_project(doc, fami):\r\n    for family_name in fami:\r\n        print(f\"Checking if family '{family_name}' exists in the project...\")\r\n        if not family_exists(doc, family_name):\r\n            print(f\"Family '{family_name}' is not loaded.\")\r\n            return False\r\n        else:\r\n            print(f\"Family '{family_name}' is loaded.\")\r\n    return True\r\n\r\ntry:\r\n    doc = DocumentManager.Instance.CurrentDBDocument\r\n    print(f\"Current document: {doc.Title}\")\r\n\r\n    # Verify if the families are loaded in the project\r\n    families_loaded = verify_families_in_project(doc, fami)\r\n\r\n    print(f\"Families loaded status: {families_loaded}\")\r\n\r\n    if families_loaded:\r\n        OUT = created_families\r\n    else:\r\n        OUT = [[], \"The created family documents are not loaded yet.\"]\r\n\r\nexcept Exception as e:\r\n    OUT = [[], f\"An error occurred: {str(e)}\"]\r\n    print(f\"An error occurred: {e}\")\r\n\r\nprint(\"Output data (OUT):\")\r\nprint(OUT)\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "6a2b6cfb26204016a0e3a554efcbee0f",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "3d70d4d8d95b4499bfdce9a7a3ef80f4",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "d2c8b35bc1f54bb1b7c3fd9bea5d3249",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.StringInput, CoreNodeModels",
+      "Id": "79e19f6d52ce4e468818eacc6a24c878",
+      "NodeType": "StringInputNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "443c16a2741645ac829bb7c5fa90349d",
+          "Name": "",
+          "Description": "String",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Creates a string",
+      "InputValue": "Sheet1"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nclr.AddReference('RevitAPI')\r\nclr.AddReference('RevitServices')\r\nfrom Autodesk.Revit.DB import *\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom RevitServices.Transactions import TransactionManager\r\n\r\n# Input data\r\ndata = IN[0]\r\n\r\n# Get the current document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Output list for TypeIDs\r\noutput_type_ids = []\r\n\r\n# Extract ElementIds from data\r\nelement_ids = [sublist[3]['Original_Window_ID'] for sublist in data]\r\n\r\nprint(element_ids)\r\n\r\n# Retrieve TypeIDs for each ElementId\r\nfor element_id in element_ids:\r\n    try:\r\n        print(f\"Processing ElementId: {element_id}\")\r\n        \r\n        # Get the element by ElementId\r\n        element = doc.GetElement(ElementId(int(element_id)))\r\n        \r\n        if element:\r\n            # Get the TypeId of the element\r\n            type_id = element.GetTypeId()\r\n            \r\n            if type_id != ElementId.InvalidElementId:\r\n                output_type_ids.append({'ElementId': element_id, 'TypeID': type_id.IntegerValue})\r\n            else:\r\n                output_type_ids.append({'ElementId': element_id, 'TypeID': None, 'Error': \"Invalid Type ID\"})\r\n        else:\r\n            output_type_ids.append({'ElementId': element_id, 'Error': f\"Element with ID {element_id} not found\"})\r\n    \r\n    except Exception as e:\r\n        print(f\"Error processing ElementId {element_id}: {str(e)}\")\r\n        output_type_ids.append({'ElementId': element_id, 'Error': str(e)})\r\n\r\n# Output result\r\nOUT = element_ids\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "b5215f6917224861938ab31ff371843a",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "c8fb1595c70f4f2fa34b49bf5e53d829",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "5b9f8cfd18e24ba8bb74428b89c40a0e",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nfrom Autodesk.Revit.DB import *\r\nfrom RevitServices.Persistence import DocumentManager\r\n\r\n# Get the current Revit document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Input data: List of family names\r\nfamdata = IN[1]\r\nprint(famdata)\r\n\r\n# Define function to extract family names from 'famdata' and remove '.rfa'\r\ndef ExtractFamilyNames(famdata):\r\n    return [item[0].replace('.rfa', '') for item in famdata]\r\n\r\n# Call the function to extract family names\r\nnew_family_names = ExtractFamilyNames(famdata)\r\n\r\n# Print extracted family names for debugging\r\nprint(\"Extracted Family Names:\", new_family_names)\r\n\r\n# Initialize a list to store lists of FamilySymbol IDs grouped by Family Name\r\nfamily_symbol_ids_lists = [[] for _ in range(len(new_family_names))]\r\n\r\n# Filtered element collector for FamilySymbol (FamilyType)\r\ncollector = FilteredElementCollector(doc).OfClass(FamilySymbol)\r\n\r\n# Iterate through each FamilySymbol and group by Family Name\r\nfor family_symbol in collector:\r\n    if family_symbol.FamilyName in new_family_names:\r\n        index = new_family_names.index(family_symbol.FamilyName)\r\n        family_symbol_ids_lists[index].append(family_symbol.Id)\r\n\r\n# Print number of FamilySymbols found for debugging\r\ntotal_symbols = sum(len(ids) for ids in family_symbol_ids_lists)\r\nprint(f\"Number of FamilySymbols found: {total_symbols}\")\r\n\r\n# Initialize a list to store the last item of each sublist\r\nlast_items = []\r\n\r\n# Iterate through each sublist and retrieve the last item\r\nfor symbol_ids_list in family_symbol_ids_lists:\r\n    if symbol_ids_list:\r\n        last_items.append(symbol_ids_list[-1])  # Append the last item of the sublist\r\n    else:\r\n        last_items.append(None)  # Append None if sublist is empty\r\n\r\n# Print the extracted last items for debugging\r\nprint(\"Extracted Last Items:\", last_items)\r\n\r\n# Output the list of last items\r\nOUT = last_items\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "4b5150a633734d5a9d3af79c9feb7594",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "fe65f07b40a9414bb09222b390bb4a63",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "1ddcac1a826c444bbd4093bd79b434c2",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "6cdc005882f4403884ef25895ae6f77d",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nclr.AddReference('RevitAPI')\r\nclr.AddReference('RevitServices')\r\n\r\nfrom Autodesk.Revit.DB import *\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom RevitServices.Transactions import TransactionManager\r\nfrom System.Collections.Generic import List\r\n\r\n\r\n# Input data\r\nfamily_instance_ids = IN[0]  # List of ElementId of existing FamilyInstance objects\r\nnew_family_type_ids = IN[1]  # List of ElementId of new FamilySymbol types\r\n\r\n# Get the current document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Start transaction\r\nTransactionManager.Instance.EnsureInTransaction(doc)\r\n\r\nchanged_instances = []\r\nerrors = []\r\n\r\ntry:\r\n    print(\"Starting Element Type Change Process...\")\r\n\r\n    for instance_id, new_type_id in zip(family_instance_ids, new_family_type_ids):\r\n        try:\r\n            # Get the FamilyInstance and FamilySymbol objects\r\n            instance = doc.GetElement(instance_id)\r\n            new_type = doc.GetElement(new_type_id)\r\n            \r\n            if not isinstance(instance, FamilyInstance):\r\n                msg = f\"Element with ID {instance_id} is not a FamilyInstance.\"\r\n                print(msg)\r\n                errors.append(msg)\r\n                continue\r\n\r\n            if not isinstance(new_type, FamilySymbol):\r\n                msg = f\"Element with ID {new_type_id} is not a FamilySymbol.\"\r\n                print(msg)\r\n                errors.append(msg)\r\n                continue\r\n\r\n            # Change the family type of the instance\r\n            instance.Symbol = new_type\r\n            changed_instances.append(instance)\r\n            print(f\"Changed family type for FamilyInstance ID {instance.Id.IntegerValue} to {new_type.Name}\")\r\n\r\n        except Exception as ex:\r\n            msg = f\"Error changing family type: {str(ex)}\"\r\n            print(msg)\r\n            errors.append(msg)\r\n\r\n    # Commit transaction\r\n    TransactionManager.Instance.TransactionTaskDone()\r\n\r\nexcept Exception as ex:\r\n    # Rollback transaction if an error occurs\r\n    TransactionManager.Instance.ForceCloseTransaction()\r\n    msg = f\"Internal Error: {str(ex)}\"\r\n    print(msg)\r\n    errors.append(msg)\r\n    raise ex\r\n\r\n# Output\r\nif errors:\r\n    OUT = (changed_instances, errors)\r\nelse:\r\n    OUT = changed_instances\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "1f6366c9d2164f88986ab70cd5949ff4",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "0298690e07d04349ab997e1fed3af6ac",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "5f777254e9bf48a0926ed78f447df1e9",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "9fdc3cc8c2fb4167b689acf7cce2ee94",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\n# Import Revit API\r\nclr.AddReference('RevitAPI')\r\nfrom Autodesk.Revit.DB import ElementId\r\n\r\n# Import RevitServices for accessing the Revit document\r\nclr.AddReference('RevitServices')\r\nimport RevitServices\r\nfrom RevitServices.Persistence import DocumentManager\r\n\r\n# Get the current Revit document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Input: List of integers representing the Element IDs\r\ninstance_ids = IN[0]\r\n\r\n# Initialize an empty list to store the resulting ElementId objects\r\nelement_ids = []\r\n\r\n# Loop through each integer ID and convert it to an ElementId\r\nfor id_int in instance_ids:\r\n    element_id = ElementId(id_int)\r\n    element_ids.append(element_id)\r\n\r\n# Output: List of ElementId objects\r\nOUT = element_ids\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "ecec2f3ac4374b4180dac7e942f4c212",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "06fa6f763a264db480a1cc5df7f94a25",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "3b1b31fb1faf4416b32194514ab03d80",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import sys\r\nimport clr\r\nclr.AddReference('ProtoGeometry')\r\nfrom Autodesk.DesignScript.Geometry import *\r\nimport openpyxl\r\nfrom openpyxl import Workbook\r\nfrom openpyxl.utils import get_column_letter\r\n\r\n# The inputs to this node will be stored as a list in the IN variables.\r\ndataEnteringNode = IN\r\n\r\n# Input variables\r\nexport_path = IN[0]\r\nmatching_data = IN[1]\r\nmarketplace_data = IN[2]\r\nsheet_name = IN[3]\r\n\r\n# Safely extract new_types_list from IN[4]\r\nnew_types_list = []\r\nif isinstance(IN[4], list) and len(IN[4]) > 0 and isinstance(IN[4][0], list):\r\n    new_types_list = IN[4][0]\r\nelse:\r\n    print(\"IN[4] is either not a list or does not contain a valid sublist. 'new_types_list' will be empty.\")\r\n\r\n# Function to convert Revit FamilyInstance to a string\r\ndef family_instance_to_name_id(family_instance):\r\n    try:\r\n        return family_instance.Name, family_instance.Id\r\n    except Exception as e:\r\n        print(f\"Error in family_instance_to_name_id: {e}\")\r\n        return \"ConversionError\", \"ConversionError\"\r\n\r\n# Convert the new types to names and IDs\r\nnew_type_names_ids = []\r\nif new_types_list:\r\n    try:\r\n        new_type_names_ids = [family_instance_to_name_id(fi) for fi in new_types_list]\r\n        print(\"New type names and IDs converted successfully\")\r\n    except Exception as e:\r\n        print(f\"Error converting new types: {e}\")\r\nelse:\r\n    print(\"No new types provided. All 'New_Type_Name' and 'ID_new_window' values will be set to 'NA'.\")\r\n\r\n# Function to export data to Excel\r\ndef export_to_excel(export_path, matching_data, new_type_names_ids, sheet_name):\r\n    try:\r\n        # Create a workbook and select the active worksheet\r\n        wb = Workbook()\r\n        ws = wb.active\r\n        ws.title = sheet_name\r\n        \r\n        # Define the headers\r\n        headers = list(matching_data[0].keys()) + ['New_Type_Name', 'ID_new_window', 'GWP_after_matchmaking']\r\n        \r\n        # Write headers to the first row\r\n        for col_num, header in enumerate(headers, 1):\r\n            col_letter = get_column_letter(col_num)\r\n            ws[f'{col_letter}1'] = header\r\n        \r\n        total_gwp_before = 0\r\n        total_gwp_after = 0\r\n        match_count = 0\r\n        new_type_index = 0\r\n        \r\n        # Write the data rows\r\n        for row_num, data_dict in enumerate(matching_data, 2):\r\n            for col_num, (key, value) in enumerate(data_dict.items(), 1):\r\n                col_letter = get_column_letter(col_num)\r\n                ws[f'{col_letter}{row_num}'] = value\r\n            \r\n            # Determine values for new type name, ID, and GWP_after_matchmaking\r\n            col_letter_name = get_column_letter(len(headers) - 2)\r\n            col_letter_id = get_column_letter(len(headers) - 1)\r\n            col_letter_gwp_after = get_column_letter(len(headers))\r\n            \r\n            if new_types_list:\r\n                if data_dict.get('Match_found', False) and new_type_index < len(new_type_names_ids):\r\n                    ws[f'{col_letter_name}{row_num}'] = new_type_names_ids[new_type_index][0]  # New Type Name\r\n                    ws[f'{col_letter_id}{row_num}'] = new_type_names_ids[new_type_index][1]  # New Type ID\r\n                    new_type_index += 1\r\n                    ws[f'{col_letter_gwp_after}{row_num}'] = 0  # Set GWP_after_matchmaking to 0 if match found\r\n                    match_count += 1\r\n                else:\r\n                    ws[f'{col_letter_name}{row_num}'] = 'NA'\r\n                    ws[f'{col_letter_id}{row_num}'] = 'NA'\r\n                    ws[f'{col_letter_gwp_after}{row_num}'] = data_dict.get('GWP (KG CO2eq)', 'NA')\r\n            else:\r\n                ws[f'{col_letter_name}{row_num}'] = 'NA'\r\n                ws[f'{col_letter_id}{row_num}'] = 'NA'\r\n                ws[f'{col_letter_gwp_after}{row_num}'] = data_dict.get('GWP (KG CO2eq)', 'NA')\r\n            \r\n            # Accumulate GWP values\r\n            gwp_value = data_dict.get('GWP (KG CO2eq)', 0)\r\n            total_gwp_before += gwp_value\r\n            total_gwp_after += 0 if data_dict.get('Match_found', False) else gwp_value\r\n        \r\n        total_kg_co2_saved = total_gwp_before - total_gwp_after\r\n\r\n        # Write summary data\r\n        summary_row = row_num + 1\r\n        ws[f'A{summary_row}'] = \"Total GWP before matchmaking\"\r\n        ws[f'B{summary_row}'] = total_gwp_before\r\n        ws[f'A{summary_row + 1}'] = \"Total GWP after matchmaking\"\r\n        ws[f'B{summary_row + 1}'] = total_gwp_after\r\n        ws[f'A{summary_row + 2}'] = \"Number of matches made\"\r\n        ws[f'B{summary_row + 2}'] = match_count\r\n        ws[f'A{summary_row + 3}'] = \"Total KG CO2 saved\"\r\n        ws[f'B{summary_row + 3}'] = total_kg_co2_saved\r\n\r\n        # Save the workbook to the specified path\r\n        wb.save(export_path)\r\n        print(f\"Data exported successfully to {export_path}\")\r\n    except Exception as e:\r\n        print(f\"Error in export_to_excel: {e}\")\r\n\r\n# Construct the full export path including the file name\r\nfile_name = 'matchmaking_data.xlsx'\r\nfull_export_path = f\"{export_path}/{file_name}\"\r\n\r\n# Export the matchmaking data to Excel\r\ntry:\r\n    export_to_excel(full_export_path, matching_data, new_type_names_ids, sheet_name)\r\nexcept Exception as e:\r\n    print(f\"Error during export: {e}\")\r\n\r\n# Assign your output to the OUT variable.\r\nOUT = f\"Data exported successfully to {full_export_path}\"\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "1b5360c3b7994209aa71b0af499a0421",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "882d2c7c916247da9375ef60df8f6726",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "3a4c2849a351466180e93c4d114636f1",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "635c62a6ca444ba180b90440ed4d54ca",
+          "Name": "IN[2]",
+          "Description": "Input #2",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "151ff2d590194e398bd83706b23937b7",
+          "Name": "IN[3]",
+          "Description": "Input #3",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "e579a1d757d140e785e11d65fa61dd79",
+          "Name": "IN[4]",
+          "Description": "Input #4",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "25d5aea7d14143ab8b8d88a5ece749c8",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Input.Directory, CoreNodeModels",
+      "Id": "f2c3836ccbba40a39d0e5eee3a1ef9b5",
+      "NodeType": "ExtensionNode",
+      "Inputs": [],
+      "Outputs": [
+        {
+          "Id": "026e076e371e4299a3bfc3d44d3158c2",
+          "Name": "",
+          "Description": "Directory path",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Allows you to select a directory on the system and returns its path",
+      "HintPath": "C:\\Users\\jorgt\\OneDrive\\Bureaublad\\Work\\03. Test_results\\Testproject_3_MP1000_MedTol",
+      "InputValue": "C:\\Users\\jorgt\\OneDrive\\Bureaublad\\Work\\03. Test_results\\Testproject_3_MP1000_MedTol"
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nclr.AddReference('RevitAPI')\r\nclr.AddReference('RevitServices')\r\nfrom Autodesk.Revit.DB import *\r\nfrom RevitServices.Persistence import DocumentManager\r\nimport shutil\r\nimport os\r\nimport tempfile\r\n\r\n# Inputs\r\ndirectory_path = IN[0]  # Directory path input\r\n\r\n# Access the current Revit document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n# Function to generate a new file name with \"_Original\" appended\r\ndef generate_new_filename(directory_path, current_name):\r\n    base_name = os.path.splitext(current_name)[0]  # Remove the extension\r\n    new_filename = \"{}_Original.rvt\".format(base_name)\r\n    return os.path.join(directory_path, new_filename)\r\n\r\n# Get the current document's title (which is the file name without the extension)\r\ncurrent_doc_title = doc.Title\r\n\r\n# Generate the new file path\r\nnew_file_path = generate_new_filename(directory_path, current_doc_title)\r\n\r\n# Get the temporary file path\r\ntemp_dir = tempfile.gettempdir()\r\ntemp_file_path = os.path.join(temp_dir, current_doc_title + \".rvt\")\r\n\r\n# Save the current document to the temporary file path\r\ntry:\r\n    save_options = SaveAsOptions()\r\n    save_options.OverwriteExistingFile = True\r\n    doc.SaveAs(temp_file_path, save_options)\r\n    \r\n    # Copy the temporary file to the new file path\r\n    shutil.copy(temp_file_path, new_file_path)\r\n    \r\n    # Delete the temporary file\r\n    os.remove(temp_file_path)\r\n    \r\n    OUT = \"File saved successfully at: {}\".format(new_file_path)\r\nexcept Exception as e:\r\n    OUT = \"Failed to save file: {}\".format(str(e))\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "5ba4cc621b2d4e92855b7e30f5a41cf2",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "96be0f72e02a4d09a192fc80c5373ea8",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "003bca65972f465fb9255dc2b497040b",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nclr.AddReference('RevitAPI')\r\nclr.AddReference('RevitServices')\r\nfrom Autodesk.Revit.DB import *\r\nfrom RevitServices.Persistence import DocumentManager\r\nimport os\r\n\r\n\r\n\r\n\r\n# Inputs\r\ndirectory_path = IN[0]  # Directory path input\r\ntrigger = IN[1]         # Trigger input\r\nstatus_message = IN[2]  # Status message input (assumed to be a string)\r\n\r\n# Check if the trigger input is NULL\r\nif trigger is None:\r\n    OUT = \"Trigger is NULL. No action taken.\"\r\nelse:\r\n    # Check if the status message contains the word \"successfully\"\r\n    if \"successfully\" in status_message:\r\n        # Access the current Revit document\r\n        doc = DocumentManager.Instance.CurrentDBDocument\r\n\r\n        # Function to generate a new file name with \"_Alternative\" appended\r\n        def generate_new_filename(directory_path, current_name):\r\n            base_name = os.path.splitext(current_name)[0]  # Remove the extension\r\n            new_filename = \"{}_Alternative.rvt\".format(base_name)\r\n            return os.path.join(directory_path, new_filename)\r\n\r\n        # Get the current document's title (which is the file name without the extension)\r\n        current_doc_title = doc.Title\r\n\r\n        # Generate the new file path\r\n        new_file_path = generate_new_filename(directory_path, current_doc_title)\r\n\r\n        # Save the document with the new file name\r\n        try:\r\n            save_options = SaveAsOptions()\r\n            save_options.OverwriteExistingFile = True\r\n            doc.SaveAs(new_file_path, save_options)\r\n            OUT = \"File saved successfully at: {}\".format(new_file_path)\r\n        except Exception as e:\r\n            OUT = \"Failed to save file: {}\".format(str(e))\r\n    else:\r\n        OUT = \"Failed to save file: Status message did not indicate success.\"\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "10743186274b4b328d1bbe14c8592330",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "579f9ecc022a41718ccf20a32725789b",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "fcc4ddb630154a128d9a19211e9e82ac",
+          "Name": "IN[1]",
+          "Description": "Input #1",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        },
+        {
+          "Id": "dcba3d2275d54799a1dcce25c6e7f80b",
+          "Name": "IN[2]",
+          "Description": "Input #2",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "a8660150d070419db41efcf5d3655a76",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "PythonNodeModels.PythonNode, PythonNodeModels",
+      "Code": "import clr\r\nclr.AddReference('RevitAPI')\r\nclr.AddReference('RevitServices')\r\nclr.AddReference('RevitNodes')\r\n\r\nimport Revit\r\nfrom RevitServices.Persistence import DocumentManager\r\nfrom Autodesk.Revit.DB import FilteredElementCollector, BuiltInCategory, Transaction, FamilyManager, FamilyParameter, ForgeTypeId, SpecTypeId, BuiltInParameterGroup, TransactionStatus, FailureHandlingOptions\r\n\r\n# Get the current document\r\ndoc = DocumentManager.Instance.CurrentDBDocument\r\n\r\ndef start_transaction(document, name):\r\n    \"\"\"Start a transaction with a given name.\"\"\"\r\n    transaction = Transaction(document, name)\r\n    transaction.Start()\r\n    return transaction\r\n\r\ndef commit_transaction(transaction):\r\n    \"\"\"Commit the current transaction.\"\"\"\r\n    if not transaction.HasEnded():\r\n        status = transaction.Commit()\r\n        if status != TransactionStatus.Committed:\r\n            raise Exception(f\"Transaction could not be committed. Status: {status}\")\r\n\r\ndef rollback_transaction(transaction):\r\n    \"\"\"Rollback the current transaction.\"\"\"\r\n    if not transaction.HasEnded():\r\n        transaction.RollBack()\r\n\r\ntry:\r\n    # Collect all family types that belong to the class \"Windows\"\r\n    print(\"Collecting window family types...\")\r\n    window_family_types = FilteredElementCollector(doc) \\\r\n        .OfCategory(BuiltInCategory.OST_Windows) \\\r\n        .WhereElementIsElementType() \\\r\n        .ToElements()\r\n    print(f\"Found {len(window_family_types)} window family types.\")\r\n\r\n    for family_type in window_family_types:\r\n        family = family_type.Family\r\n        print(f\"Processing family: {family.Name}\")\r\n\r\n        # Start transaction to ensure no conflicts before editing\r\n        try:\r\n            print(f\"Starting transaction to ensure no conflicts before editing: {family.Name}\")\r\n            t = start_transaction(doc, f\"Prepare to Edit Family {family.Name}\")\r\n\r\n            # Ensure previous transactions are done before editing family\r\n            if not t.HasEnded():\r\n                print(f\"Committing transaction before editing family document: {family.Name}\")\r\n                commit_transaction(t)\r\n\r\n            # Open the family document for editing\r\n            print(f\"Attempting to edit family document: {family.Name}\")\r\n            family_doc = doc.EditFamily(family)\r\n            print(f\"Opened family document for editing: {family.Name}\")\r\n\r\n            # Add a new parameter to the family\r\n            family_manager = family_doc.FamilyManager\r\n\r\n            try:\r\n                # Start a transaction for modifying the family document\r\n                t = start_transaction(family_doc, f\"Modify Family {family.Name}\")\r\n\r\n                # Check if the parameter already exists\r\n                param = family_manager.get_Parameter('GWP (KG CO2eq)')\r\n                if param is None:\r\n                    # Define the group type and parameter type for the parameter\r\n                    group_type_id = ForgeTypeId(BuiltInParameterGroup.PG_DATA)\r\n                    spec_type_id = SpecTypeId.Number  # Correct spec type for numeric values\r\n\r\n                    # Add the new parameter if it does not exist\r\n                    print(f\"Adding new parameter to family: {family.Name}\")\r\n                    new_param = family_manager.AddParameter(\r\n                        'GWP (KG CO2eq)',\r\n                        group_type_id,\r\n                        spec_type_id,\r\n                        False  # Assuming this is a type parameter, set to True if it should be an instance parameter\r\n                    )\r\n                    print(f\"Added new parameter to family: {family.Name}\")\r\n                else:\r\n                    new_param = param\r\n                    print(f\"Parameter already exists in family: {family.Name}\")\r\n\r\n                # Set the formula for the parameter\r\n                formula = \"((Width*Height)/1) * 156.01\"\r\n                print(f\"Setting formula '{formula}' for parameter '{new_param.Definition.Name}' in family: {family.Name}\")\r\n\r\n                try:\r\n                    family_manager.SetFormula(new_param, formula)\r\n                    print(f\"Successfully set formula for family: {family.Name}\")\r\n                except Exception as e:\r\n                    print(f\"Error setting formula for parameter '{new_param.Definition.Name}' in family '{family.Name}': {e}\")\r\n                    raise  # Re-raise the exception to handle it in the outer catch block\r\n\r\n                # Commit the transaction for the family document\r\n                print(f\"Committing transaction for family document: {family.Name}\")\r\n                commit_transaction(t)\r\n\r\n                # Save changes to the family document\r\n                try:\r\n                    print(f\"Saving changes to family document: {family.Name}\")\r\n                    family_doc.Save()  # Save instead of SaveAs\r\n                    print(f\"Saved changes to family document: {family.Name}\")\r\n                except Exception as e:\r\n                    print(f\"Error saving family document {family.Name}: {e}\")\r\n                    continue\r\n\r\n            finally:\r\n                # Ensure the family document is properly closed\r\n                try:\r\n                    print(f\"Closing family document: {family.Name}\")\r\n                    if not t.HasEnded():\r\n                        commit_transaction(t)  # Ensure the transaction is committed before closing\r\n                    family_doc.Close(False)\r\n                    print(f\"Closed family document: {family.Name}\")\r\n                except Exception as e:\r\n                    print(f\"Error closing family document {family.Name}: {e}\")\r\n\r\n            print(f\"Completed processing family: {family.Name}\")\r\n\r\n        except Exception as e:\r\n            # Rollback if something goes wrong\r\n            if 't' in locals() and not t.HasEnded():\r\n                rollback_transaction(t)\r\n            # Print the error message if an exception occurs\r\n            OUT = str(e)\r\n            print(f\"Exception: {e}\")\r\n\r\n    OUT = \"Parameters added and formula set for all window family types.\"\r\n\r\nexcept Exception as e:\r\n    # Print the error message if an exception occurs\r\n    OUT = str(e)\r\n    print(f\"Exception: {e}\")\r\n",
+      "Engine": "CPython3",
+      "EngineName": "CPython3",
+      "VariableInputPorts": true,
+      "Id": "1a1da90712d54eb3afe6a36df13270aa",
+      "NodeType": "PythonScriptNode",
+      "Inputs": [
+        {
+          "Id": "3ce287fce2d14f6a9bf536431bddbc85",
+          "Name": "IN[0]",
+          "Description": "Input #0",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "a329343ccee04f85a27efdc9787ee1a9",
+          "Name": "OUT",
+          "Description": "Result of the python script",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Runs an embedded Python script."
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "WatchWidth": 420.0,
+      "WatchHeight": 38.4,
+      "Id": "f261a80b0d9b4755b7ba770341b2c1f5",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "ecdaaec77cdf405991e568324429d7f9",
+          "Name": "",
+          "Description": "Node to show output from",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "37c2ee2401e54aa58acf1d658db5761e",
+          "Name": "",
+          "Description": "Node output",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualizes a node's output"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "WatchWidth": 420.0,
+      "WatchHeight": 38.4,
+      "Id": "bd5990e0df5f4b5e8391f8b6bf1c7ea9",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "970fad0842c84081bdc52563c6145f76",
+          "Name": "",
+          "Description": "Node to show output from",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "3e981be32198437dae2606a9f0668a30",
+          "Name": "",
+          "Description": "Node output",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualizes a node's output"
+    },
+    {
+      "ConcreteType": "CoreNodeModels.Watch, CoreNodeModels",
+      "WatchWidth": 420.0,
+      "WatchHeight": 38.4,
+      "Id": "002ca937703d4cf088acd7c1952b0fe1",
+      "NodeType": "ExtensionNode",
+      "Inputs": [
+        {
+          "Id": "520a610371b540539de742a519025373",
+          "Name": "",
+          "Description": "Node to show output from",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Outputs": [
+        {
+          "Id": "711c2540a17a4339bf157e2660f54963",
+          "Name": "",
+          "Description": "Node output",
+          "UsingDefaultValue": false,
+          "Level": 2,
+          "UseLevels": false,
+          "KeepListStructure": false
+        }
+      ],
+      "Replication": "Disabled",
+      "Description": "Visualizes a node's output"
+    }
+  ],
+  "Connectors": [
+    {
+      "Start": "f2f6400b3abf4595a7a0ea3a4ac98cc2",
+      "End": "111043185f234441b156e0896a7565b0",
+      "Id": "2cf4ffa0c3354104bc923a66f7a1d165",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "f2f6400b3abf4595a7a0ea3a4ac98cc2",
+      "End": "635c62a6ca444ba180b90440ed4d54ca",
+      "Id": "ce1fc1daa72a4dd9894299eb0cd83c75",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "71b87f346d9f4ea3a81c3270602a0308",
+      "End": "d60486869ac449709dfc526a3909bbff",
+      "Id": "448182051946454db47fab5296b7dcca",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "cc023d81b1cd4791952ce66cfa230170",
+      "End": "d6495de5a6de4abcbbfc03f80741c146",
+      "Id": "42a28a58e0964ab4bc12782e86b4fe59",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "fe30617f6dc246ff9f11f4b4b70bc769",
+      "End": "66eea797038f41b7a4c243bc89c02b13",
+      "Id": "9a07b8357a384bd9a32b3fe4a2ae3fe8",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "fe30617f6dc246ff9f11f4b4b70bc769",
+      "End": "3a4c2849a351466180e93c4d114636f1",
+      "Id": "2bf80ace89f54f1281d07f898627c743",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "257b15f9a70b43febcf3a8575b7f92eb",
+      "End": "c8fb1595c70f4f2fa34b49bf5e53d829",
+      "Id": "8a3cba54b5854185b37fea0a6b6a1bb9",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "257b15f9a70b43febcf3a8575b7f92eb",
+      "End": "fe65f07b40a9414bb09222b390bb4a63",
+      "Id": "58545a3b7e2647a188a02afc6670191e",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "257b15f9a70b43febcf3a8575b7f92eb",
+      "End": "3d70d4d8d95b4499bfdce9a7a3ef80f4",
+      "Id": "ae2761e885684ad6b2acd2e375f0db4a",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "d2c8b35bc1f54bb1b7c3fd9bea5d3249",
+      "End": "1ddcac1a826c444bbd4093bd79b434c2",
+      "Id": "7a6f09cafbbe40a6b3d93f848659b9e3",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "443c16a2741645ac829bb7c5fa90349d",
+      "End": "33e1421acd2f4170b21ec57992f98aa5",
+      "Id": "88d95997151f4aebbfe253a8e688c249",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "443c16a2741645ac829bb7c5fa90349d",
+      "End": "151ff2d590194e398bd83706b23937b7",
+      "Id": "13cb5b86d2574033ba8fc771988e5a67",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "5b9f8cfd18e24ba8bb74428b89c40a0e",
+      "End": "06fa6f763a264db480a1cc5df7f94a25",
+      "Id": "78bcfda37caa4562b5c89d4be2cb6024",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "6cdc005882f4403884ef25895ae6f77d",
+      "End": "5f777254e9bf48a0926ed78f447df1e9",
+      "Id": "316457628a724b8396552b614ff55cfb",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "9fdc3cc8c2fb4167b689acf7cce2ee94",
+      "End": "fcc4ddb630154a128d9a19211e9e82ac",
+      "Id": "473f7405f63e4218a321423ab871f24b",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "9fdc3cc8c2fb4167b689acf7cce2ee94",
+      "End": "e579a1d757d140e785e11d65fa61dd79",
+      "Id": "82521f0d247a48e29817fc5cb2eb901d",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "3b1b31fb1faf4416b32194514ab03d80",
+      "End": "0298690e07d04349ab997e1fed3af6ac",
+      "Id": "38f44e249eee48f0968a0bf215488b84",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "25d5aea7d14143ab8b8d88a5ece749c8",
+      "End": "dcba3d2275d54799a1dcce25c6e7f80b",
+      "Id": "239b319310444f39b7f03882aa562628",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "25d5aea7d14143ab8b8d88a5ece749c8",
+      "End": "970fad0842c84081bdc52563c6145f76",
+      "Id": "2c6469cbd44f4cc2b399ac61cbd7dea6",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "026e076e371e4299a3bfc3d44d3158c2",
+      "End": "882d2c7c916247da9375ef60df8f6726",
+      "Id": "af8ddb48fad54e11b4603fde64969082",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "026e076e371e4299a3bfc3d44d3158c2",
+      "End": "96be0f72e02a4d09a192fc80c5373ea8",
+      "Id": "28f58d68734d440ea0b846ed3ed97c4b",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "026e076e371e4299a3bfc3d44d3158c2",
+      "End": "579f9ecc022a41718ccf20a32725789b",
+      "Id": "e2524d5cea114aa9a52ddecfe977ae55",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "026e076e371e4299a3bfc3d44d3158c2",
+      "End": "3ce287fce2d14f6a9bf536431bddbc85",
+      "Id": "67d6f7bb6f8b46218dc22bf3a68a9baf",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "a8660150d070419db41efcf5d3655a76",
+      "End": "520a610371b540539de742a519025373",
+      "Id": "fe1b7c28219e412d879bf2f45f85f3ed",
+      "IsHidden": "False"
+    },
+    {
+      "Start": "a329343ccee04f85a27efdc9787ee1a9",
+      "End": "ecdaaec77cdf405991e568324429d7f9",
+      "Id": "a667a0cabf87443cbfe4358391347019",
+      "IsHidden": "False"
+    }
+  ],
+  "Dependencies": [],
+  "NodeLibraryDependencies": [],
+  "Thumbnail": "",
+  "GraphDocumentationURL": null,
+  "ExtensionWorkspaceData": [
+    {
+      "ExtensionGuid": "28992e1d-abb9-417f-8b1b-05e053bee670",
+      "Name": "Properties",
+      "Version": "2.18",
+      "Data": {}
+    },
+    {
+      "ExtensionGuid": "DFBD9CC0-DB40-457A-939E-8C8555555A9D",
+      "Name": "Generative Design",
+      "Version": "6.0",
+      "Data": {}
+    }
+  ],
+  "Author": "",
+  "Linting": {
+    "activeLinter": "None",
+    "activeLinterId": "7b75fb44-43fd-4631-a878-29f4d5d8399a",
+    "warningCount": 0,
+    "errorCount": 0
+  },
+  "Bindings": [],
+  "View": {
+    "Dynamo": {
+      "ScaleFactor": 10000.0,
+      "HasRunWithoutCrash": true,
+      "IsVisibleInDynamoLibrary": true,
+      "Version": "2.19.3.6394",
+      "RunType": "Manual",
+      "RunPeriod": "1000"
+    },
+    "Camera": {
+      "Name": "_Background Preview",
+      "EyeX": -14.202963829040527,
+      "EyeY": 24.589641571044922,
+      "EyeZ": 43.845344543457031,
+      "LookX": 10.750494956970215,
+      "LookY": -11.646369934082031,
+      "LookZ": -51.960723876953125,
+      "UpX": 0.0,
+      "UpY": 1.0,
+      "UpZ": 0.0
+    },
+    "ConnectorPins": [],
+    "NodeViews": [
+      {
+        "Id": "995144fe9d3d486488a5652ee12fb3d0",
+        "Name": "Database Excel",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1179.6527056648438,
+        "Y": -5101.9075133786346
+      },
+      {
+        "Id": "615e072748e745399c9fc7260192f124",
+        "Name": "Tolerance",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1416.5229868049678,
+        "Y": -4792.19639626517
+      },
+      {
+        "Id": "b3f56ede1f5447f396add49e4206dd03",
+        "Name": "String",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1609.313746252823,
+        "Y": -4938.6765060619455
+      },
+      {
+        "Id": "9ff7676f0dae4db5aafee33977d69dc4",
+        "Name": "Matchmaking script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1905.9408630381154,
+        "Y": -5047.5983251862062
+      },
+      {
+        "Id": "e01d6bf3de8147f99a60e023a220a6ea",
+        "Name": "New familytype creation script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 2270.3499543498306,
+        "Y": -5052.1533469001051
+      },
+      {
+        "Id": "6a2b6cfb26204016a0e3a554efcbee0f",
+        "Name": "Check if families are loaded",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 2626.1979701476002,
+        "Y": -4921.9504588818209
+      },
+      {
+        "Id": "79e19f6d52ce4e468818eacc6a24c878",
+        "Name": "Sheetname",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1603.0077900674341,
+        "Y": -5233.7024811215842
+      },
+      {
+        "Id": "b5215f6917224861938ab31ff371843a",
+        "Name": "TypeID (original) extraction script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 2618.3494515878415,
+        "Y": -5193.0588326651559
+      },
+      {
+        "Id": "4b5150a633734d5a9d3af79c9feb7594",
+        "Name": "NewtypeID extractor",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 2962.9641613125737,
+        "Y": -5051.1579791003041
+      },
+      {
+        "Id": "1f6366c9d2164f88986ab70cd5949ff4",
+        "Name": "Replacement script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3265.4332524283295,
+        "Y": -5199.3952881802716
+      },
+      {
+        "Id": "ecec2f3ac4374b4180dac7e942f4c212",
+        "Name": "Translation script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 2970.5395292768067,
+        "Y": -5193.1101551408346
+      },
+      {
+        "Id": "1b5360c3b7994209aa71b0af499a0421",
+        "Name": "Excel export script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3272.6106676091376,
+        "Y": -5562.8105002071816
+      },
+      {
+        "Id": "f2c3836ccbba40a39d0e5eee3a1ef9b5",
+        "Name": "Export file path",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1294.1207304880768,
+        "Y": -5430.9245500833431
+      },
+      {
+        "Id": "5ba4cc621b2d4e92855b7e30f5a41cf2",
+        "Name": "Duplicate original file",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1867.5710210437114,
+        "Y": -5620.0806810340919
+      },
+      {
+        "Id": "10743186274b4b328d1bbe14c8592330",
+        "Name": "Save new project",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3570.6887912479906,
+        "Y": -5441.1223025165427
+      },
+      {
+        "Id": "1a1da90712d54eb3afe6a36df13270aa",
+        "Name": "GWP param adding script",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 1872.4374958864037,
+        "Y": -5307.0848843555368
+      },
+      {
+        "Id": "f261a80b0d9b4755b7ba770341b2c1f5",
+        "Name": "Watch",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 2275.0565219794848,
+        "Y": -5616.9757373299381
+      },
+      {
+        "Id": "bd5990e0df5f4b5e8391f8b6bf1c7ea9",
+        "Name": "Watch",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3956.6536425113968,
+        "Y": -5708.091427116171
+      },
+      {
+        "Id": "002ca937703d4cf088acd7c1952b0fe1",
+        "Name": "Watch",
+        "IsSetAsInput": false,
+        "IsSetAsOutput": false,
+        "Excluded": false,
+        "ShowGeometry": true,
+        "X": 3961.8728816761554,
+        "Y": -5437.7775271864566
+      }
+    ],
+    "Annotations": [],
+    "X": -425.582664615158,
+    "Y": 2479.1180888892704,
+    "Zoom": 0.413293309039329
+  }
+}
