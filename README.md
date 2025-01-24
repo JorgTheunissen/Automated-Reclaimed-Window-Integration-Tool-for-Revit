@@ -56,4 +56,5 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 This project is licensed under the MIT License. See the `LICENSE` file for more details.
 
 ## Acknowledgments
-This tool was developed by **Jorg Theunissen** with guidance from **Professor Timo Hartmann** at **TU Berlin**. The project was inspired by the **Reincarnate** initiative, and I’d like to express my gratitude to my colleagues for their support and contributions throughout the development process.
+We gratefully acknowledge support from the European Union’s **Horizon Europe research and innovation program** under grant agreement No.101056773 for funding this work under the **Reincarnate** project.
+This tool was developed by **Jorg Theunissen** with guidance from **Professor Timo Hartmann** at **TU Berlin**. Additionally, I’d like to express my gratitude to my colleagues for their support and contributions throughout the development process. 
