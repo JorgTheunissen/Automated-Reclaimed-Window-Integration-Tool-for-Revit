@@ -2,9 +2,7 @@
 # Automated Integration of Second-Hand Windows in Revit with Dynamo
 
 ## Overview
-This repository contains a Dynamo script developed by **Jorg Theunissen** that automates the integration of second-hand windows into Revit models. By utilizing this tool, architects, designers, and engineers can efficiently incorporate reused windows, helping to reduce material waste and calculate the Global Warming Potential (GWP) savings for sustainable construction practices.
-
-The initial concept for this tool originated from the **Reincarnate** project and was developed under the guidance of **Professor Timo Hartmann** at **TU Berlin**, along with support from colleagues.
+This repository contains a Dynamo script that automates the integration of second-hand windows into Revit models. By utilizing this tool, architects, designers, and engineers can efficiently incorporate reused windows, helping to reduce material waste and calculate the Global Warming Potential (GWP) savings for sustainable construction practices.
 
 ## Features
 - **Automated Window Matching:** Matches second-hand windows to existing Revit families based on user-defined dimensional tolerances.
@@ -54,7 +52,3 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 ## License
 This project is licensed under the MIT License. See the `LICENSE` file for more details.
-
-## Acknowledgments
-We gratefully acknowledge support from the European Union’s **Horizon Europe research and innovation program** under grant agreement No.101056773 for funding this work under the **Reincarnate** project.
-This tool was developed by **Jorg Theunissen** with guidance from **Professor Timo Hartmann** at **TU Berlin**. Additionally, I’d like to express my gratitude to my colleagues for their support and contributions throughout the development process. 
